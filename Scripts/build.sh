@@ -24,6 +24,7 @@ xcrun --sdk iphoneos clang \
     "${ROOT_DIR}"/Sources/*.m \
     -framework Foundation \
     -framework UIKit \
+    -framework CoreGraphics \
     -framework CoreLocation \
     -framework MapKit \
     -Wl,-install_name,@executable_path/Frameworks/FakeGPS.dylib \
