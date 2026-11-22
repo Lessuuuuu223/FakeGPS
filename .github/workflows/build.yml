@@ -1,0 +1,32 @@
+name: Build FakeGPS
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'Sources/**'
+      - 'Scripts/**'
+      - '.github/workflows/build.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build and inspect dylib
+        run: bash Scripts/build.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: FakeGPS-arm64-ios13
+          path: |
+            build/FakeGPS.dylib
+            build/FakeGPS.zip
+            build/SHA256SUMS.txt
+          if-no-files-found: error
