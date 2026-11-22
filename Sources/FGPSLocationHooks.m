@@ -69,7 +69,7 @@ static void FGPSWrapDelegateClass(id delegate) {
     }
 
     @synchronized (FGPSDelegateOriginalImplementations) {
-        NSValue *classKey = [NSValue valueWithPointer:delegateClass];
+        NSValue *classKey = [NSValue valueWithPointer:(__bridge const void *)delegateClass];
         if (FGPSDelegateOriginalImplementations[classKey] != nil) {
             return;
         }

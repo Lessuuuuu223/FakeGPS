@@ -113,8 +113,8 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
 
 - (void)dealloc {
     [_searchTimer invalidate];
-    [_searchGeocoder cancel];
-    [_reverseGeocoder cancel];
+    [_searchGeocoder cancelGeocode];
+    [_reverseGeocoder cancelGeocode];
 }
 
 - (void)viewDidLoad {
@@ -518,7 +518,7 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
     }
 
     self.draftSequence += 1;
-    [self.reverseGeocoder cancel];
+    [self.reverseGeocoder cancelGeocode];
     self.reverseGeocoder = nil;
     self.hasDraft = YES;
     self.draftCoordinate = coordinate;
@@ -578,7 +578,7 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
 - (void)cancelPendingSearch {
     [self.searchTimer invalidate];
     self.searchTimer = nil;
-    [self.searchGeocoder cancel];
+    [self.searchGeocoder cancelGeocode];
     self.searchGeocoder = nil;
     self.searchSequence += 1;
 }
