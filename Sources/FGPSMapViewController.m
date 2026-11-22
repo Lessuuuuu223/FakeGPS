@@ -87,12 +87,9 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
 @property (nonatomic, strong) MKMapView *mapView;
 @property (nonatomic, strong) UILabel *addressInfoLabel;
 @property (nonatomic, strong) UILabel *coordinateInfoLabel;
-@property (nonatomic, strong) UILabel *altitudeInfoLabel;
 @property (nonatomic, strong) UILabel *noteInfoLabel;
 @property (nonatomic, strong) UILabel *locationValueLabel;
-@property (nonatomic, strong) UILabel *altitudeValueLabel;
 @property (nonatomic, strong) UISwitch *locationSwitch;
-@property (nonatomic, strong) UISwitch *altitudeSwitch;
 @property (nonatomic, strong) UISegmentedControl *mapTypeControl;
 @property (nonatomic, strong) NSTimer *searchTimer;
 @property (nonatomic, strong) CLGeocoder *searchGeocoder;
@@ -120,7 +117,7 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.title = @"FakeGPS";
-    self.view.backgroundColor = UIColor.systemBackgroundColor;
+    self.view.backgroundColor = UIColor.systemGroupedBackgroundColor;
     self.navigationItem.leftBarButtonItem = [[UIBarButtonItem alloc] initWithBarButtonSystemItem:UIBarButtonSystemItemDone
                                                                                          target:self
                                                                                          action:@selector(closeMap)];
@@ -150,9 +147,41 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
 - (UILabel *)makeInformationLabel {
     UILabel *label = [[UILabel alloc] init];
     label.font = [UIFont systemFontOfSize:14.0];
-    label.textColor = UIColor.labelColor;
+    label.textColor = UIColor.secondaryLabelColor;
     label.numberOfLines = 0;
     return label;
+}
+
+- (void)styleButton:(UIButton *)button primary:(BOOL)primary {
+    button.titleLabel.font = [UIFont systemFontOfSize:primary ? 17.0 : 15.0
+                                                weight:primary ? UIFontWeightSemibold : UIFontWeightMedium];
+    button.layer.cornerRadius = primary ? 12.0 : 10.0;
+    button.layer.masksToBounds = YES;
+    if (primary) {
+        button.backgroundColor = UIColor.systemBlueColor;
+        button.tintColor = UIColor.whiteColor;
+        [button setTitleColor:UIColor.whiteColor forState:UIControlStateNormal];
+    } else {
+        button.backgroundColor = UIColor.tertiarySystemFillColor;
+        [button setTitleColor:UIColor.systemBlueColor forState:UIControlStateNormal];
+    }
+}
+
+- (UIView *)makeCardWithContentView:(UIView *)contentView {
+    UIView *card = [[UIView alloc] init];
+    card.translatesAutoresizingMaskIntoConstraints = NO;
+    card.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
+    card.layer.cornerRadius = 14.0;
+    card.layer.masksToBounds = YES;
+    [card addSubview:contentView];
+    contentView.translatesAutoresizingMaskIntoConstraints = NO;
+    [NSLayoutConstraint activateConstraints:@[
+        [contentView.topAnchor constraintEqualToAnchor:card.topAnchor constant:16.0],
+        [contentView.leadingAnchor constraintEqualToAnchor:card.leadingAnchor constant:16.0],
+        [contentView.trailingAnchor constraintEqualToAnchor:card.trailingAnchor constant:-16.0],
+        [contentView.bottomAnchor constraintEqualToAnchor:card.bottomAnchor constant:-16.0]
+    ]];
+    return card;
 }
 
 - (UIStackView *)makeSwitchRowWithLabel:(UILabel *)label control:(UISwitch *)control {
@@ -160,6 +189,7 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
     row.axis = UILayoutConstraintAxisHorizontal;
     row.alignment = UIStackViewAlignmentCenter;
     row.spacing = 12.0;
+    [row.heightAnchor constraintGreaterThanOrEqualToConstant:44.0].active = YES;
     [control setContentHuggingPriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
     [control setContentCompressionResistancePriority:UILayoutPriorityRequired forAxis:UILayoutConstraintAxisHorizontal];
     return row;
@@ -172,30 +202,33 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
     self.searchBar.placeholder = @"搜索地点";
     self.searchBar.returnKeyType = UIReturnKeySearch;
     self.searchBar.autocorrectionType = UITextAutocorrectionTypeNo;
+    self.searchBar.searchBarStyle = UISearchBarStyleMinimal;
+    self.searchBar.searchTextField.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
     [self.view addSubview:self.searchBar];
 
     UIButton *historyButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [historyButton setTitle:@"历史记录" forState:UIControlStateNormal];
     [historyButton addTarget:self action:@selector(showHistory) forControlEvents:UIControlEventTouchUpInside];
+    [self styleButton:historyButton primary:NO];
 
     UIButton *coordinateButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [coordinateButton setTitle:@"输入位置" forState:UIControlStateNormal];
     [coordinateButton addTarget:self action:@selector(presentCoordinateInput) forControlEvents:UIControlEventTouchUpInside];
+    [self styleButton:coordinateButton primary:NO];
 
-    UIButton *altitudeButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    [altitudeButton setTitle:@"输入海拔" forState:UIControlStateNormal];
-    [altitudeButton addTarget:self action:@selector(presentAltitudeInput) forControlEvents:UIControlEventTouchUpInside];
-
-    UIStackView *actionStack = [[UIStackView alloc] initWithArrangedSubviews:@[historyButton, coordinateButton, altitudeButton]];
+    UIStackView *actionStack = [[UIStackView alloc] initWithArrangedSubviews:@[historyButton, coordinateButton]];
     actionStack.translatesAutoresizingMaskIntoConstraints = NO;
     actionStack.axis = UILayoutConstraintAxisHorizontal;
     actionStack.distribution = UIStackViewDistributionFillEqually;
+    actionStack.spacing = 8.0;
     [self.view addSubview:actionStack];
 
     self.mapView = [[MKMapView alloc] init];
     self.mapView.translatesAutoresizingMaskIntoConstraints = NO;
     self.mapView.showsUserLocation = YES;
     self.mapView.mapType = MKMapTypeStandard;
+    self.mapView.layer.cornerRadius = 14.0;
+    self.mapView.layer.masksToBounds = YES;
     UILongPressGestureRecognizer *longPress = [[UILongPressGestureRecognizer alloc] initWithTarget:self action:@selector(handleMapLongPress:)];
     longPress.minimumPressDuration = 0.5;
     [self.mapView addGestureRecognizer:longPress];
@@ -203,64 +236,76 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
 
     UIView *bottomPanel = [[UIView alloc] init];
     bottomPanel.translatesAutoresizingMaskIntoConstraints = NO;
-    bottomPanel.backgroundColor = UIColor.secondarySystemBackgroundColor;
+    bottomPanel.backgroundColor = UIColor.systemGroupedBackgroundColor;
     [self.view addSubview:bottomPanel];
 
     UIScrollView *controlsScrollView = [[UIScrollView alloc] init];
     controlsScrollView.translatesAutoresizingMaskIntoConstraints = NO;
+    controlsScrollView.alwaysBounceVertical = YES;
     [bottomPanel addSubview:controlsScrollView];
 
     self.addressInfoLabel = [self makeInformationLabel];
     self.addressInfoLabel.text = @"地址：未选择";
+    self.addressInfoLabel.font = [UIFont systemFontOfSize:16.0 weight:UIFontWeightSemibold];
+    self.addressInfoLabel.textColor = UIColor.labelColor;
     self.coordinateInfoLabel = [self makeInformationLabel];
     self.coordinateInfoLabel.text = @"经纬度：未选择";
-    self.altitudeInfoLabel = [self makeInformationLabel];
     self.noteInfoLabel = [self makeInformationLabel];
     self.noteInfoLabel.text = @"备注：无";
 
+    UIStackView *informationStack = [[UIStackView alloc] initWithArrangedSubviews:@[
+        self.addressInfoLabel,
+        self.coordinateInfoLabel,
+        self.noteInfoLabel
+    ]];
+    informationStack.axis = UILayoutConstraintAxisVertical;
+    informationStack.spacing = 6.0;
+    UIView *informationCard = [self makeCardWithContentView:informationStack];
+
     self.locationValueLabel = [self makeInformationLabel];
+    self.locationValueLabel.font = [UIFont systemFontOfSize:15.0 weight:UIFontWeightMedium];
+    self.locationValueLabel.textColor = UIColor.labelColor;
     self.locationSwitch = [[UISwitch alloc] init];
     [self.locationSwitch addTarget:self action:@selector(locationSwitchChanged:) forControlEvents:UIControlEventValueChanged];
     UIStackView *locationRow = [self makeSwitchRowWithLabel:self.locationValueLabel control:self.locationSwitch];
 
-    self.altitudeValueLabel = [self makeInformationLabel];
-    self.altitudeSwitch = [[UISwitch alloc] init];
-    [self.altitudeSwitch addTarget:self action:@selector(altitudeSwitchChanged:) forControlEvents:UIControlEventValueChanged];
-    UIStackView *altitudeRow = [self makeSwitchRowWithLabel:self.altitudeValueLabel control:self.altitudeSwitch];
+    UIStackView *switchStack = [[UIStackView alloc] initWithArrangedSubviews:@[locationRow]];
+    switchStack.axis = UILayoutConstraintAxisVertical;
+    switchStack.spacing = 4.0;
+    UIView *switchCard = [self makeCardWithContentView:switchStack];
 
     UIButton *confirmButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [confirmButton setTitle:@"确认位置" forState:UIControlStateNormal];
     [confirmButton addTarget:self action:@selector(confirmLocation) forControlEvents:UIControlEventTouchUpInside];
+    [self styleButton:confirmButton primary:YES];
+    [confirmButton.heightAnchor constraintEqualToConstant:48.0].active = YES;
 
     UIButton *trackingButton = [UIButton buttonWithType:UIButtonTypeSystem];
     [trackingButton setTitle:@"用户跟踪" forState:UIControlStateNormal];
     [trackingButton addTarget:self action:@selector(toggleUserTracking) forControlEvents:UIControlEventTouchUpInside];
-
-    UIStackView *mapActionStack = [[UIStackView alloc] initWithArrangedSubviews:@[confirmButton, trackingButton]];
-    mapActionStack.axis = UILayoutConstraintAxisHorizontal;
-    mapActionStack.distribution = UIStackViewDistributionFillEqually;
-    mapActionStack.spacing = 12.0;
-    [mapActionStack.heightAnchor constraintEqualToConstant:40.0].active = YES;
+    [self styleButton:trackingButton primary:NO];
 
     self.mapTypeControl = [[UISegmentedControl alloc] initWithItems:@[@"标准", @"卫星"]];
     self.mapTypeControl.selectedSegmentIndex = 0;
     [self.mapTypeControl addTarget:self action:@selector(mapTypeChanged:) forControlEvents:UIControlEventValueChanged];
 
+    UIStackView *mapActionStack = [[UIStackView alloc] initWithArrangedSubviews:@[trackingButton, self.mapTypeControl]];
+    mapActionStack.axis = UILayoutConstraintAxisHorizontal;
+    mapActionStack.distribution = UIStackViewDistributionFillEqually;
+    mapActionStack.spacing = 12.0;
+    [mapActionStack.heightAnchor constraintEqualToConstant:40.0].active = YES;
+
     UIStackView *controlsStack = [[UIStackView alloc] initWithArrangedSubviews:@[
-        self.addressInfoLabel,
-        self.coordinateInfoLabel,
-        self.altitudeInfoLabel,
-        self.noteInfoLabel,
-        locationRow,
-        altitudeRow,
-        mapActionStack,
-        self.mapTypeControl
+        informationCard,
+        switchCard,
+        confirmButton,
+        mapActionStack
     ]];
     controlsStack.translatesAutoresizingMaskIntoConstraints = NO;
     controlsStack.axis = UILayoutConstraintAxisVertical;
-    controlsStack.spacing = 8.0;
+    controlsStack.spacing = 12.0;
     controlsStack.layoutMarginsRelativeArrangement = YES;
-    controlsStack.layoutMargins = UIEdgeInsetsMake(10.0, 16.0, 10.0, 16.0);
+    controlsStack.layoutMargins = UIEdgeInsetsMake(16.0, 16.0, 16.0, 16.0);
     [controlsScrollView addSubview:controlsStack];
 
     self.suggestionsTableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStylePlain];
@@ -270,29 +315,39 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
     self.suggestionsTableView.keyboardDismissMode = UIScrollViewKeyboardDismissModeOnDrag;
     self.suggestionsTableView.rowHeight = UITableViewAutomaticDimension;
     self.suggestionsTableView.estimatedRowHeight = 56.0;
+    self.suggestionsTableView.backgroundColor = UIColor.secondarySystemGroupedBackgroundColor;
+    self.suggestionsTableView.layer.cornerRadius = 14.0;
+    self.suggestionsTableView.layer.masksToBounds = YES;
+    self.suggestionsTableView.separatorInset = UIEdgeInsetsMake(0.0, 16.0, 0.0, 16.0);
     self.suggestionsTableView.hidden = YES;
     [self.view addSubview:self.suggestionsTableView];
 
     UILayoutGuide *safeArea = self.view.safeAreaLayoutGuide;
+    NSLayoutConstraint *panelHeight = [bottomPanel.heightAnchor constraintEqualToConstant:350.0];
+    panelHeight.priority = UILayoutPriorityDefaultHigh;
+    NSLayoutConstraint *minimumMapHeight = [self.mapView.heightAnchor constraintGreaterThanOrEqualToConstant:180.0];
+    minimumMapHeight.priority = UILayoutPriorityRequired - 1.0;
+
     [NSLayoutConstraint activateConstraints:@[
-        [self.searchBar.topAnchor constraintEqualToAnchor:safeArea.topAnchor],
-        [self.searchBar.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor],
-        [self.searchBar.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor],
+        [self.searchBar.topAnchor constraintEqualToAnchor:safeArea.topAnchor constant:4.0],
+        [self.searchBar.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor constant:16.0],
+        [self.searchBar.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor constant:-16.0],
 
-        [actionStack.topAnchor constraintEqualToAnchor:self.searchBar.bottomAnchor],
-        [actionStack.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor],
-        [actionStack.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor],
-        [actionStack.heightAnchor constraintEqualToConstant:44.0],
+        [actionStack.topAnchor constraintEqualToAnchor:self.searchBar.bottomAnchor constant:4.0],
+        [actionStack.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor constant:16.0],
+        [actionStack.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor constant:-16.0],
+        [actionStack.heightAnchor constraintEqualToConstant:40.0],
 
-        [self.mapView.topAnchor constraintEqualToAnchor:actionStack.bottomAnchor],
-        [self.mapView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
-        [self.mapView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
-        [self.mapView.bottomAnchor constraintEqualToAnchor:bottomPanel.topAnchor],
+        [self.mapView.topAnchor constraintEqualToAnchor:actionStack.bottomAnchor constant:12.0],
+        [self.mapView.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor constant:16.0],
+        [self.mapView.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor constant:-16.0],
+        [self.mapView.bottomAnchor constraintEqualToAnchor:bottomPanel.topAnchor constant:-12.0],
+        minimumMapHeight,
 
         [bottomPanel.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
         [bottomPanel.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
         [bottomPanel.bottomAnchor constraintEqualToAnchor:safeArea.bottomAnchor],
-        [bottomPanel.heightAnchor constraintEqualToConstant:300.0],
+        panelHeight,
 
         [controlsScrollView.topAnchor constraintEqualToAnchor:bottomPanel.topAnchor],
         [controlsScrollView.leadingAnchor constraintEqualToAnchor:bottomPanel.leadingAnchor],
@@ -305,16 +360,15 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
         [controlsStack.bottomAnchor constraintEqualToAnchor:controlsScrollView.contentLayoutGuide.bottomAnchor],
         [controlsStack.widthAnchor constraintEqualToAnchor:controlsScrollView.frameLayoutGuide.widthAnchor],
 
-        [self.suggestionsTableView.topAnchor constraintEqualToAnchor:self.searchBar.bottomAnchor],
-        [self.suggestionsTableView.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor],
-        [self.suggestionsTableView.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor],
+        [self.suggestionsTableView.topAnchor constraintEqualToAnchor:self.searchBar.bottomAnchor constant:4.0],
+        [self.suggestionsTableView.leadingAnchor constraintEqualToAnchor:safeArea.leadingAnchor constant:16.0],
+        [self.suggestionsTableView.trailingAnchor constraintEqualToAnchor:safeArea.trailingAnchor constant:-16.0],
         [self.suggestionsTableView.heightAnchor constraintEqualToConstant:280.0]
     ]];
 }
 
 - (void)refreshCurrentValues {
     self.locationSwitch.on = FGPSLocationSpoofingEnabled();
-    self.altitudeSwitch.on = FGPSAltitudeSpoofingEnabled();
 
     CLLocationCoordinate2D coordinate;
     if (FGPSGetSavedCoordinate(&coordinate)) {
@@ -322,14 +376,6 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
     } else {
         self.locationValueLabel.text = @"位置：未设置";
     }
-
-    double altitude = 0.0;
-    NSString *altitudeText = @"未设置";
-    if (FGPSGetSavedAltitude(&altitude)) {
-        altitudeText = [NSString stringWithFormat:@"%.2f 米", altitude];
-    }
-    self.altitudeValueLabel.text = [NSString stringWithFormat:@"海拔：%@", altitudeText];
-    self.altitudeInfoLabel.text = [NSString stringWithFormat:@"海拔：%@", altitudeText];
 }
 
 - (void)showAlertWithTitle:(NSString *)title message:(NSString *)message {
@@ -418,41 +464,6 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
     [self presentViewController:alert animated:YES completion:nil];
 }
 
-- (void)presentAltitudeInput {
-    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"输入海拔"
-                                                                   message:@"保存到 altitude，范围为 -500 至 10000 米。"
-                                                            preferredStyle:UIAlertControllerStyleAlert];
-    double savedAltitude = 0.0;
-    BOOL hasSavedAltitude = FGPSGetSavedAltitude(&savedAltitude);
-    [alert addTextFieldWithConfigurationHandler:^(UITextField *textField) {
-        textField.placeholder = @"海拔（米）";
-        textField.keyboardType = UIKeyboardTypeNumbersAndPunctuation;
-        if (hasSavedAltitude) {
-            textField.text = [NSString stringWithFormat:@"%.2f", savedAltitude];
-        }
-    }];
-    [alert addAction:[UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil]];
-
-    __weak typeof(self) weakSelf = self;
-    __weak UIAlertController *weakAlert = alert;
-    [alert addAction:[UIAlertAction actionWithTitle:@"保存" style:UIAlertActionStyleDefault handler:^(__unused UIAlertAction *action) {
-        __strong typeof(weakSelf) strongSelf = weakSelf;
-        __strong UIAlertController *strongAlert = weakAlert;
-        if (strongSelf == nil || strongAlert.textFields.count == 0) {
-            return;
-        }
-
-        double altitude = 0.0;
-        if (!FGPSStrictDouble(strongAlert.textFields[0].text, &altitude) || altitude < -500.0 || altitude > 10000.0) {
-            [strongSelf showAlertWithTitle:@"输入无效" message:@"请输入 -500 至 10000 之间的有限数值，不能包含多余字符。"];
-            return;
-        }
-        FGPSSaveAltitude(altitude);
-        [strongSelf refreshCurrentValues];
-    }]];
-    [self presentViewController:alert animated:YES completion:nil];
-}
-
 - (void)confirmLocation {
     if (FGPSLocationSpoofingEnabled()) {
         [self showAlertWithTitle:@"无法确认位置" message:@"请先关闭位置开关。"];
@@ -477,11 +488,6 @@ static BOOL FGPSHistoryNumber(id value, double *outValue) {
 
 - (void)locationSwitchChanged:(UISwitch *)sender {
     FGPSSetLocationSpoofingEnabled(sender.on);
-    [self refreshCurrentValues];
-}
-
-- (void)altitudeSwitchChanged:(UISwitch *)sender {
-    FGPSSetAltitudeSpoofingEnabled(sender.on);
     [self refreshCurrentValues];
 }
 

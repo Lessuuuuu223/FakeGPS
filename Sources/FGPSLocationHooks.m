@@ -8,8 +8,6 @@
 #import <objc/runtime.h>
 
 static CLLocationCoordinate2D (*FGPSOriginalLocationCoordinate)(id, SEL);
-static double (*FGPSOriginalLocationAltitude)(id, SEL);
-static double (*FGPSOriginalLocationVerticalAccuracy)(id, SEL);
 static void (*FGPSOriginalSetDelegate)(id, SEL, id);
 static CLLocation *(*FGPSOriginalManagerLocation)(id, SEL);
 static void (*FGPSOriginalSetDesiredAccuracy)(id, SEL, CLLocationAccuracy);
@@ -20,10 +18,6 @@ static NSMutableDictionary<NSValue *, NSValue *> *FGPSDelegateOriginalImplementa
 
 static BOOL FGPSLocationSimulationIsActive(void) {
     return FGPSLocationSpoofingEnabled() && FGPSGetSavedCoordinate(NULL);
-}
-
-static BOOL FGPSAltitudeSimulationIsActive(void) {
-    return FGPSAltitudeSpoofingEnabled() && FGPSGetSavedAltitude(NULL);
 }
 
 static CLLocation *FGPSSyntheticLocation(void) {
@@ -138,21 +132,6 @@ void FGPSInstallLocationHooks(void) {
             }
             return original;
         }, (IMP *)&FGPSOriginalLocationCoordinate);
-
-        FGPSReplaceMethod(CLLocation.class, @selector(altitude), ^double(CLLocation *self) {
-            double altitude;
-            if (FGPSAltitudeSimulationIsActive() && FGPSGetSavedAltitude(&altitude)) {
-                return altitude;
-            }
-            return FGPSOriginalLocationAltitude(self, @selector(altitude));
-        }, (IMP *)&FGPSOriginalLocationAltitude);
-
-        FGPSReplaceMethod(CLLocation.class, @selector(verticalAccuracy), ^double(CLLocation *self) {
-            if (FGPSAltitudeSimulationIsActive()) {
-                return 5.0 + (double)arc4random_uniform(1000) / 100.0;
-            }
-            return FGPSOriginalLocationVerticalAccuracy(self, @selector(verticalAccuracy));
-        }, (IMP *)&FGPSOriginalLocationVerticalAccuracy);
 
         FGPSReplaceMethod(CLLocationManager.class, @selector(setDelegate:), ^void(CLLocationManager *self, id delegate) {
             FGPSOriginalSetDelegate(self, @selector(setDelegate:), delegate);
